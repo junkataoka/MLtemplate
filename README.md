@@ -1,4 +1,4 @@
-# Ascender
+# Ascender + Singularity + sHCP for Jun
 
 ![stable](https://img.shields.io/badge/stable-v0.1.3-blue)
 ![python versions](https://img.shields.io/badge/python-3.8%20%7C%203.9-blue)
@@ -30,9 +30,9 @@ Please check [the slide format resources about Ascender (Japanese)](https://cvpa
     │
     ├── data/              <- Datasets.
     │
-    ├── environments/       <- Provision depends on environments.
-    │
     ├── models/            <- Pretrained and serialized models.
+    │
+    ├── container/         <- Singularity container.
     │
     ├── notebooks/         <- Jupyter notebooks.
     │
@@ -46,6 +46,7 @@ Please check [the slide format resources about Ascender (Japanese)](https://cvpa
     ├── .dockerignore
     ├── .gitignore
     ├── LICENSE
+    ├── container.sif      <- Singularity container file.
     ├── Makefile           <- Makefile used as task runner.
     ├── poetry.lock        <- Lock file. DON'T edit this file manually.
     ├── poetry.toml        <- Setting file for Poetry.
@@ -56,96 +57,41 @@ Please check [the slide format resources about Ascender (Japanese)](https://cvpa
 
 ## Prerequisites
 
+- [Singularity](https://sylabs.io/)
 - [Docker](https://www.docker.com/)
-- [Docker Compose](https://github.com/docker/compose)
-- (Optional) [NVIDIA Container Toolkit (nvidia-docker2)](https://github.com/NVIDIA/nvidia-docker)
 
-**NOTE**: Example codes in the README.md are written for `Docker Compose v2`. However, Ascender also should work under `Docker Compose v1`. If you are using `Docker Compose v1`, just replace `docker compose` in the example code by `docker-compose`.
-
-## Prerequisites installation
-
-Here, we show example prerequisites installation codes for Ubuntu. If prerequisites  are already installed your environment, please skip this section. If you want to install in another environment, please follow the officail documentations.
-
-- Docker and Docker Compose: [Install Docker Engine](https://docs.docker.com/engine/install/)
-- NVIDIA Container Toolkit (nvidia-docker2): [Installation Guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker)
-
-### Install Docker and Docker Compose
+### Create Singularity Container
 
 ```bash
-# Set up the repository
-$ sudo apt update
-$ sudo apt install ca-certificates curl gnupg lsb-release
-$ sudo mkdir -p /etc/apt/keyrings
-$ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-$ echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+# Create sandbox from docker image
+$ singularity build --sandbox container/ docker://nvcr.io/nvidia/pytorch:23.05-py
+# Connect to the container's shell
+singularity shell --writable container/
+# Install poetry and whatever necessary
+$ pip install poetry
+# Convert the container into a SIF file
+$ singularity build container.sif container/
+# Install dependencies using poetry
+$ singularity exec container.sif poetry install
+# Load CUDA in case you are using sHPC
+$ ml spider CUDA11.7.0
 
-# Install Docker and Docker Compose
-$ sudo apt update
-$ sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 ```
-
-If `sudo docker run hello-world` works, installation succeeded.
-
-### (Optional) NVIDIA Container Toolkit
-
-If you want to use GPU in Ascender, please install NVIDIA Container Toolkit (nvidia-docker2) too. NVIDIA Container Toolkit also requires some prerequisites to install. So please check thier [official documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#pre-requisites) first.
-
-```bash
-$ distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
-      && curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
-      && curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
-            sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-            sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-
-$ sudo apt update
-$ sudo apt install -y nvidia-docker2
-$ sudo systemctl restart docker
-```
-
-If `sudo docker run --rm --gpus all nvidia/cuda:11.0.3-base nvidia-smi` works, installation succeeded.
-
-## Quick start
-
-Here, we explain how to start using Ascender. Please refer to [this slide (Japanese)](https://cvpaperchallenge.github.io/Britannica/ascender/ja) for detailed information.
-
-### Create GitHub repo from Ascender
-
-Fisrt of all, you need to create your own GitHub repo from Ascender as follows:
-
-- Visit [GitHub repo page of Ascender](https://github.com/cvpaperchallenge/Ascender).
-- Press ["Use this template"](https://github.com/cvpaperchallenge/Ascender/generate) button in the upper right part of the page.
-- Fill in the items on the page, and press "Create repository from template" button.
-
-Now, a new repo should be created from Ascender in your GitHub account.
 
 ### Start development
 
 ```bash
-# Clone repo
-$ git clone git@github.com:cvpaperchallenge/<YOUR_REPO_NAME>.git
-$ cd <YOUR_REPO_NAME>
 
-# Build Docker image and run container
-$ cd environments/gpu  # if you want to use only cpu, `cd environments/cpu`
-$ sudo docker compose up -d
-
-# Run bash inside of container (jump into contaienr)
-$ sudo docker compose exec core bash
-
+# Run singularity container
+$ singularity exec container.sif bash
 # Create virtual environment and install dependent packages by Poetry
 $ poetry install
 ```
-
 Now, you are ready to start development with Ascender.
 
-### Stop development
-
+### Submit job file to sHPC
 ```bash
-# Stop container
-$ cd environments/gpu  # or `cd environments/cpu` 
-$ sudo docker compose stop
+$ bsub < submission.sh
 ```
 
 ## FAQ

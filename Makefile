@@ -19,7 +19,8 @@ isort:
 	poetry run isort src tests
 
 .PHONY: mdformat
-mdformat:
+mdformat::w
+
 	poetry run mdformat *.md
 
 .PHONY: mdformat-check
